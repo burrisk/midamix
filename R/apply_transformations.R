@@ -13,8 +13,8 @@ applyTransformations <- function(X, transformations, indices = NULL){
   if (is.null(indices)){
     indices <- 1:p
   }
-  y_mat <- sapply(indices, function(index){
-    transformations[[index]](x_mat[, index])
-  })
+  y_mat <- do.call(cbind, lapply(indices, function(index){
+    transformations[[index]](x_mat[, index, drop = TRUE])
+  }))
   y_mat
 }
