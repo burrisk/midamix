@@ -1,4 +1,12 @@
-# Generates data from a mixture of normal distributions
+#' Generates data from a mixture of multivariate normal distributions.
+#'
+#' @param n The number of samples to draw.
+#' @param mean A matrix corresponding to the means of each cluster.
+#' @param sigma An array with the covariance matrices of each cluster.
+#' @param num_clusters The number of clusters in the mixture.
+#' @param prob Probabilities of cluster membership.
+#' @param method Method used for generating from a multivariate normal distribution.
+#' @return A matrix of samples from a mixture of multivariate normal distributions.
 rMixtureNormal <- function(n,
                            mean = matrix(0, nrow = dim(sigma)[1], ncol = num_clusters),
                            sigma = array(rep(diag(nrow(mean)), num_clusters),
@@ -30,6 +38,11 @@ rMixtureNormal <- function(n,
   sim
 }
 
+#' Generates data from a transformed mixture of multivariate normal distributions.
+#'
+#' @inheritParams rMixtureNormal
+#' @param transformations A list of functions to apply to corresponding columns.
+#' @return A matrix of samples from a mixture of multivariate normal distributions.
 rMixtureNormalTransform <- function(n,
                                     mean = matrix(0, nrow = dim(sigma)[1], ncol = num_clusters),
                                     sigma = array(rep(diag(nrow(mean)), num_clusters),
@@ -50,22 +63,22 @@ rMixtureNormalTransform <- function(n,
 
 }
 
-# Examples
-n <- 100
-num_clusters <- 3
-p <- 2
-mean <- matrix(c(rep(0, p), c(-3, 3), rep(3, p)), ncol = num_clusters)
-sigma <- array(rep(diag(nrow(mean)), num_clusters),
-               dim = c(nrow(mean), nrow(mean), num_clusters))
-prob <- c(0.25, 0.5, 0.25)
-transformations <- list(
-  function(z){
-    qpois(pnorm(z), lambda = 7)
-  },
-  function(z){
-    qpois(pnorm(z), lambda = 5)
-  }
-)
-x <- rMixtureNormalTransform(n, mean, sigma, num_clusters, prob, transformations)
-plot(x[,1], x[,2])
+# # Examples
+# n <- 100
+# num_clusters <- 3
+# p <- 2
+# mean <- matrix(c(rep(0, p), c(-3, 3), rep(3, p)), ncol = num_clusters)
+# sigma <- array(rep(diag(nrow(mean)), num_clusters),
+#                dim = c(nrow(mean), nrow(mean), num_clusters))
+# prob <- c(0.25, 0.5, 0.25)
+# transformations <- list(
+#   function(z){
+#     qpois(pnorm(z), lambda = 7)
+#   },
+#   function(z){
+#     qpois(pnorm(z), lambda = 5)
+#   }
+# )
+# x <- rMixtureNormalTransform(n, mean, sigma, num_clusters, prob, transformations)
+# plot(x[,1], x[,2])
 
