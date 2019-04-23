@@ -1,4 +1,6 @@
-#' Random number generator for the multivariate normal distribution with mean equal
+#' Multivariate normal distribution
+#'
+#' Random number generator and density for the multivariate normal distribution with mean equal
 #' to \code{mean} and covariance matrix \code{sigma}
 #'
 #' @param n The number of observations
@@ -6,8 +8,10 @@
 #' @param sigma Covariance matrix, default is identity.
 #' @param method string specifying the matrix decomposition used to determine the
 #' matrix root of sigma
+#' @param x A vector or matrix of quantiles.  If x is a matrix, each row is taken to
+#' be a quantile
+#' @param log logical; if \code{TRUE}, log-densities are returned
 #' @param pre0.9_9994 logical; version of rmvnorm used, inherited from mvtnorm package
-#' @return A matrix of samples from a multivariate normal distributions.
 rmvnorm <- function (n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
                      method = c("eigen", "svd", "chol"), pre0.9_9994 = FALSE) {
   if (!isSymmetric(sigma, tol = sqrt(.Machine$double.eps),
@@ -43,13 +47,7 @@ rmvnorm <- function (n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
   retval
 }
 
-#' Density function of a multivariate normal distributions
-#'
-#' @inheritParams rmvnorm
-#' @param x A vector or matrix of quantiles.  If x is a matrix, each row is taken to
-#' be a quantile
-#' @param log logical; if \code{TRUE}, log-densities are returned
-#' @return Then density of the multivariate normal distribution.
+#' @rdname rmvnorm
 dmvnorm <- function (x, mean = rep(0, p), sigma = diag(p), log = FALSE) {
   if (is.vector(x))
     x <- matrix(x, ncol = length(x))
@@ -85,11 +83,13 @@ dmvnorm <- function (x, mean = rep(0, p), sigma = diag(p), log = FALSE) {
   else exp(logretval)
 }
 
-#' Function that randomly generates positive definite from a Wishart distribution
+#' Random Wishart distributions
 #'
-#'  @param v degrees of freedom
-#'  @param S inverse scale matrix
-#'  @return A positive definite matrix with the same dimension as S
+#' Randomly generates positive definite matrices from Wishart and Inverse-Wishart distributions
+#'
+#' @param v degrees of freedom
+#' @param S inverse scale matrix
+#' @return A positive definite matrix with the same dimension as S
 rwish <- function (v, S) {
   if (!is.matrix(S))
     S <- matrix(S)
@@ -111,16 +111,23 @@ rwish <- function (v, S) {
   return(crossprod(Z %*% CC))
 }
 
-#' Function that randomly generates positive definite from an Inverse-Wishart distribution
-#'
-#'  @describeIn rwish
-#'  @inheritParams rwish
-#'  @return A positive definite matrix with the same dimension as S
-#'  @return A positive definite matrix with the same dimension as S
+#' @rdname rwish
 riwish <- function (v, S) {
   return(solve(rwish(v, solve(S))))
 }
 
+#' Truncated normal distribution
+#'
+#' Calculates densities and cdfs of the truncated normal distribution.  Also can generate from the distribution.
+#' @param n Number of observations
+#' @param y A vector of data values
+#' @param u A vector of quantiles
+#' @param a Lower bound
+#' @param b Upper bound
+#' @param mean Mean of the unconstrained distribution
+#' @param sd Standard deviation of the unconstrained distribution
+#' @param log logical; should the log-density be returned?
+#'
 rtruncnorm <- function(n, a = -Inf, b = Inf, mean = 0, sd = 1) {
   stopifnot(length(a) > 0, length(b) > 0, length(mean) > 0,
             length(sd) > 0)
@@ -136,7 +143,7 @@ rtruncnorm <- function(n, a = -Inf, b = Inf, mean = 0, sd = 1) {
   qnorm(u, mean = mean, sd = sd)
 }
 
-
+#' @rdname rtruncnorm
 dtruncnorm <- function(y, a = -Inf, b = Inf, mean = 0, sd = 1, log = F){
   stopifnot(length(a) > 0, length(b) > 0, length(mean) > 0,
             length(sd) > 0)
@@ -155,7 +162,8 @@ dtruncnorm <- function(y, a = -Inf, b = Inf, mean = 0, sd = 1, log = F){
     exp(log_density)
 }
 
-ptruncnorm <- function(y, a = -Inf, b = Inf, mean = 0, sd = 1, log = F){
+#' @rdname rtruncnorm
+ptruncnorm <- function(y, a = -Inf, b = Inf, mean = 0, sd = 1){
   stopifnot(length(a) > 0, length(b) > 0, length(mean) > 0,
             length(sd) > 0)
   if (!(is.numeric(y))){
@@ -167,12 +175,10 @@ ptruncnorm <- function(y, a = -Inf, b = Inf, mean = 0, sd = 1, log = F){
   cdf_b <- pnorm(b, mean = mean, sd = sd)
   unconst_cdf <- pnorm(y, mean = mean, sd = sd)
   trunc_cdf <- (unconst_cdf - cdf_a) / (cdf_b - cdf_a)
-  if (log)
-    log(trunc_cdf)
-  else
-    trunc_cdf
+  trunc_cdf
 }
 
+#' @rdname rtruncnorm
 qtruncnorm <- function(u, a = -Inf, b = Inf, mean = 0, sd = 1){
   stopifnot(length(a) > 0, length(b) > 0, length(mean) > 0,
             length(sd) > 0)
