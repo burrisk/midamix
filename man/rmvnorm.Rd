@@ -3,12 +3,15 @@
 \name{rmvnorm}
 \alias{rmvnorm}
 \alias{dmvnorm}
+\alias{dmvnorm_prec}
 \title{Multivariate normal distribution}
 \usage{
 rmvnorm(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
   method = c("eigen", "svd", "chol"), pre0.9_9994 = FALSE)
 
 dmvnorm(x, mean = rep(0, p), sigma = diag(p), log = FALSE)
+
+dmvnorm_prec(x, mean = rep(0, p), prec = diag(p), log = FALSE)
 }
 \arguments{
 \item{n}{The number of observations}
@@ -26,6 +29,8 @@ matrix root of sigma}
 be a quantile}
 
 \item{log}{logical; if \code{TRUE}, log-densities are returned}
+
+\item{prec}{Precision matrix, default is identity}
 }
 \description{
 Random number generator and density for the multivariate normal distribution with mean equal
