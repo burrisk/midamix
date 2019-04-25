@@ -28,13 +28,12 @@ calculate_cluster_probs <- function(model_params){
   V <- model_params$V
   K <- length(V)
   cluster_probs <- rep(0, K)
-  cum_prod <- 1
+  log_cum_prod <- 0
   for (k in 1:K){
-    cluster_probs[k] <- V[k] * cum_prod
-    cum_prod <- cum_prod * (1 - V[k])
+    cluster_probs[k] <- log(V[k]) + log_cum_prod
+    log_cum_prod <- log_cum_prod + log(1 - V[k])
   }
-  cluster_probs
-  model_params$cluster_probs <- cluster_probs
+  model_params$cluster_probs <- exp(cluster_probs)
   model_params
 }
 
@@ -96,6 +95,7 @@ update_clusters <- function(model_params, hyperpars){
   n <- nrow(Z)
   p <- dim(cluster_coefs)[2]
   K <- dim(cluster_coefs)[3]
+  prec_log_dets <- apply(cluster_precs, c(3), function(S) log(abs(det(S))))
   clusters <- rep(0, n)
   for (i in 1:n){
     Xi <- matrix(X[i, ], nrow = 1)
@@ -103,7 +103,7 @@ update_clusters <- function(model_params, hyperpars){
     log_density <- rep(0, K)
     for (k in 1:K){
       log_density[k] <- dmvnorm_prec(Zi, Xi %*% cluster_coefs[, , k], cluster_precs[, , k],
-                                log = T)
+                                prec_log_det = prec_log_dets[k], log = T)
     }
     log_probs <- log(cluster_probs) + log_density
     log_probs <- log_probs - max(log_probs)
@@ -220,7 +220,7 @@ update_zobs <- function(model_params, hyperpars, transformations){
       Z_obs_disc <- Z_obs[obs_discrete, , drop = F]
       Sigma12 <- cov[j, -j, drop = F]
       Sigma22_inv <- solve(cov[-j, -j, drop = F])
-      cond_var <- sigma_j_tilde <- (cov[j, j] - Sigma12 %*% Sigma22_inv %*% t(Sigma12))[1, 1]
+      cond_var <- (cov[j, j] - Sigma12 %*% Sigma22_inv %*% t(Sigma12))[1, 1]
       cond_mean <- X_obs_disc %*% coefs[, j, drop = F] - t(Sigma12 %*% Sigma22_inv %*%
                                                 t(Z_obs_disc[, -j, drop = F] -
                                                     X_obs_disc %*% coefs[, -j, drop = F]))
@@ -238,8 +238,8 @@ update_zobs <- function(model_params, hyperpars, transformations){
 update_model_params <- function(model_params, hyperpars, transformations){
   model_params <- model_params %>%
     update_zobs(hyperpars, transformations) %>%
-    update_cluster_coefs(hyperpars) %>%
     update_cluster_covs(hyperpars) %>%
+    update_cluster_coefs(hyperpars) %>%
     update_clusters(hyperpars) %>%
     update_b0(hyperpars) %>%
     update_sigma(hyperpars) %>%
@@ -248,4 +248,53 @@ update_model_params <- function(model_params, hyperpars, transformations){
     update_tau(hyperpars) %>%
     update_alpha(hyperpars)
   model_params
+}
+
+midamix_mcmc <- function(inits, hyperpars, transformations, n_iter = 1000,
+                         burnin = 100, monitor = NULL){
+  model_params <- inits
+  output <- list()
+  for (variable in monitor){
+    if (variable %in% names(model_params)){
+      output[[variable]] = array(dim = c(0, dim(as.array(model_params[[variable]]))))
+    }
+  }
+  if (burnin > 0){
+    pb_burnin <- progress::progress_bar$new(
+      format = "  burn-in [:bar] :percent eta: :eta",
+      total = burnin, clear = FALSE, width= 60)
+    pb_burnin$tick(0)
+    for (i in 1:burnin){
+      pb_burnin$tick()
+      Sys.sleep(0.01)
+      model_params <- update_model_params(model_params, hyperpars, transformations)
+    }
+  }
+  pb_sampling <- progress::progress_bar$new(
+    format = "  sampling [:bar] :percent eta: :eta",
+    total = n_iter, clear = FALSE, width= 60)
+  pb_sampling$tick(0)
+  for (i in 1:n_iter){
+    stop <- T
+    tryCatch({
+    model_params <- update_model_params(model_params, hyperpars, transformations)
+    stop <- F
+    }, error = function(e){
+
+    })
+    if (stop){
+      message("\n Sampler failed: check output to diagnose the problem.")
+      return(output)
+    }
+    for (variable in monitor){
+      if (variable %in% names(model_params)){
+        as.array(model_params[[variable]])
+        output[[variable]] = abind::abind(output[[variable]], as.array(model_params[[variable]]),
+                                          along = 1)
+      }
+    }
+    pb_sampling$tick()
+    Sys.sleep(0.01)
+  }
+  output
 }
