@@ -30,22 +30,6 @@ calculate_log_cluster_probs <- function(model_params){
   model_params
 }
 
-update_sigma <- function(model_params, hyperpars){
-  nu <- hyperpars$nu
-  omega <- hyperpars$omega
-  Sigma0 <- hyperpars$Sigma0
-  cluster_covs <- model_params$cluster_covs
-  cluster_precs <- cluster_covs
-  K <- dim(cluster_covs)[3]
-  for (k in 1:K){
-    cluster_precs[, , k] <- solve(cluster_covs[, , k])
-  }
-  S <- solve(solve(Sigma0) + apply(cluster_precs, c(1, 2), sum))
-  df <- nu * K + omega
-  model_params$Sigma <- rwish(df, S)
-  model_params
-}
-
 update_clusters <- function(model_params){
   cluster_means <- model_params$cluster_means
   cluster_covs <- model_params$cluster_covs
@@ -63,23 +47,25 @@ update_clusters <- function(model_params){
 }
 
 update_cluster_means <- function(model_params, hyperpars){
-  mu0 <- hyperpars$mu0
+  mu0 <- matrix(hyperpars$mu0, ncol = 1)
   h <- hyperpars$h
-  cluster_covs <- model_params$cluster_covs
+  cluster_precs <- model_params$cluster_precs
   Z <- model_params$Z
   clusters <- model_params$clusters
   p <- length(hyperpars$mu0)
-  K <- dim(cluster_covs)[3]
+  K <- dim(cluster_precs)[3]
   cluster_means <- matrix(nrow = K, ncol = p)
   for (k in 1:K){
     cluster_indices <- which(clusters == k)
     n_k <- length(cluster_indices)
     if (n_k == 0){
-      cluster_means[k, ] <- mvnfast::rmvn(1, mu0, cluster_covs[, , k] / h)
+      cluster_means[k, ] <- mvnfast::rmvn(1, mu0, diag(p) / h)
     } else{
+      prec <- cluster_precs[, , k]
       Z_cluster <- Z[cluster_indices, , drop = F]
-      mu <- (h * mu0 + apply(Z_cluster, 2, sum)) / (n_k + h)
-      sigma <- cluster_covs[, , k] / (n_k + h)
+      z_sums <- matrix(apply(Z_cluster, 2, sum), ncol = 1)
+      sigma <- solve(n_k * prec + h * diag(p))
+      mu <- sigma %*% (prec %*% z_sums + h * mu0)
       cluster_means[k, ] <- mvnfast::rmvn(1, mu, sigma)
     }
   }
@@ -91,18 +77,20 @@ update_cluster_covs <- function(model_params, hyperpars){
   nu <- hyperpars$nu
   mu0 <- hyperpars$mu0
   h <- hyperpars$h
-  Sigma <- model_params$Sigma
+  Sigma <- hyperpars$Sigma
   cluster_means <- model_params$cluster_means
   Z <- model_params$Z
   clusters <- model_params$clusters
   K <- nrow(cluster_means)
   p <- ncol(Z)
   cluster_covs <- model_params$cluster_covs
+  cluster_precs <- model_params$cluster_precs
   for (k in 1:K){
     cluster_indices <- which(clusters == k)
     n_k <- length(cluster_indices)
     if (n_k == 0){
-      riwish(nu, Sigma)
+      cluster_covs[, , k] <- riwish(nu, Sigma)
+      cluster_precs[, , k] <- solve(cluster_covs[, , k])
     } else{
       Z_cluster <- Z[cluster_indices, , drop = F]
       Z_mean <- apply(Z_cluster, 2, mean)
@@ -111,12 +99,13 @@ update_cluster_covs <- function(model_params, hyperpars){
         Zmz <- matrix(Z_cluster[i, ] - Z_mean, ncol = 1)
         S <- S + Zmz %*% t(Zmz)
       }
-      mkm0 <- matrix(Z_mean - mu0, ncol = 1)
-      M <- mkm0 %*% t(mkm0)
-      cluster_covs[, , k] <- riwish(nu + n_k, (nu * n_k) / (nu + n_k) * M + S + Sigma)
+      Cov_k <- riwish(nu + n_k,  S + Sigma)
+      cluster_covs[, , k] <- Cov_k
+      cluster_precs[, , k] <- solve(Cov_k)
     }
   }
   model_params$cluster_covs <- cluster_covs
+  model_params$cluster_precs <- cluster_precs
   model_params
 }
 
@@ -151,9 +140,8 @@ update_zobs <- function(model_params, transformations){
       Sigma12 <- cov[j, -j, drop = F]
       Sigma22_inv <- solve(cov[-j, -j, drop = F])
       cond_var <- (cov[j, j] - Sigma12 %*% Sigma22_inv %*% t(Sigma12))[1, 1]
-      cond_mean <- meank[j] + t(Sigma12 %*% Sigma22_inv %*%
-                                                             t(Z_obs_disc[, -j, drop = F] -
-                                                                 meank[-j]))
+      cond_mean <- meank[j] + t(Sigma12 %*% Sigma22_inv %*% t(sweep(Z_obs_disc[, -j, drop  = F],
+                                                                  2, meank[-j])))
       Z[obs_indices[obs_discrete], j] <- truncnorm::rtruncnorm(length(obs_discrete),
                                                                a = boundsZ[obs_discrete, 1],
                                                                b = boundsZ[obs_discrete, 2],
@@ -165,26 +153,58 @@ update_zobs <- function(model_params, transformations){
   model_params
 }
 
-update_model_params <- function(model_params, hyperpars, transformations){
+update_zmis <- function(model_params, transformations, validator){
+  Y <- model_params$Y
+  Z <- model_params$Z
+  n <- nrow(Y)
+  p <- ncol(Y)
+  E <- is.na(Y)
+  missing_observations <- which(rowSums(E) != 0)
+  for (i in missing_observations){
+    missing_values <- which(E[i, ] == 1)
+    obs_values <- which(E[i, ] == 0)
+    cluster <- model_params$clusters[i]
+    cluster_mean <- t(model_params$cluster_means[cluster, , drop = F])
+    cluster_cov <- model_params$cluster_covs[, , cluster]
+    if (length(obs_values) == 0){
+      cond_mean <- cluster_mean
+      cond_var <- cluster_cov
+    } else{
+      Sigma22_inv <- solve(cluster_cov[obs_values, obs_values])
+      Sigma12 <- cluster_cov[missing_values, obs_values, drop = F]
+      cond_mean <- cluster_mean[missing_values, drop  = F] + Sigma12 %*% Sigma22_inv %*%
+        (Z[i, obs_values] - cluster_mean[obs_values])
+      cond_var <- cluster_cov[missing_values, missing_values] - Sigma12 %*% Sigma22_inv %*%
+        t(Sigma12)
+    }
+    #TODO add constraints
+    z_mis <- mvnfast::rmvn(1, cond_mean, cond_var)
+    Z[i, missing_values] <- z_mis
+  }
+  model_params$Z <- Z
+  model_params
+}
+
+update_model_params <- function(model_params, hyperpars, transformations, validator){
   model_params <- model_params %>%
     update_zobs(transformations) %>%
+    update_zmis(transformations, validator) %>%
     update_cluster_covs(hyperpars) %>%
     update_cluster_means(hyperpars) %>%
     update_clusters() %>%
-    update_sigma(hyperpars) %>%
     update_v() %>%
     calculate_log_cluster_probs() %>%
     update_alpha(hyperpars)
   model_params
 }
 
-midamix_mcmc <- function(inits, hyperpars, transformations, n_iter = 1000,
-                         burnin = 100, monitor = NULL){
+midamix_mcmc <- function(inits, hyperpars, transformations, validator = NULL,
+                         n_iter = 1000, burnin = 100, monitor = NULL){
   model_params <- inits
   output <- list()
   for (variable in monitor){
     if (variable %in% names(model_params)){
-      output[[variable]] = array(dim = c(0, dim(as.array(model_params[[variable]]))))
+      output[[variable]] = rep(list(0), n_iter)
     }
   }
   if (burnin > 0){
@@ -216,14 +236,12 @@ midamix_mcmc <- function(inits, hyperpars, transformations, n_iter = 1000,
     }
     for (variable in monitor){
       if (variable %in% names(model_params)){
-        as.array(model_params[[variable]])
-        output[[variable]] = abind::abind(output[[variable]], as.array(model_params[[variable]]),
-                                          along = 1)
+        output[[variable]][[i]] <- as.array(model_params[[variable]])
       }
     }
     pb_sampling$tick()
     Sys.sleep(0.01)
   }
+  output <- lapply(output, simplify2array)
   output
 }
-
