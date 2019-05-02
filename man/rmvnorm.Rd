@@ -11,7 +11,8 @@ rmvnorm(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
 
 dmvnorm(x, mean = rep(0, p), sigma = diag(p), log = FALSE)
 
-dmvnorm_prec(x, mean = rep(0, p), prec = diag(p), log = FALSE)
+dmvnorm_prec(x, mean = rep(0, p), prec = diag(p),
+  prec_log_det = NULL, log = FALSE)
 }
 \arguments{
 \item{n}{The number of observations}

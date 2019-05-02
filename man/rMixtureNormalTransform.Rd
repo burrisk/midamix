@@ -27,7 +27,7 @@ rMixtureNormalTransform(n, mean = matrix(0, nrow = dim(sigma)[1], ncol =
 \item{method}{Method used for generating from a multivariate normal distribution.}
 }
 \value{
-A matrix of samples from a mixture of multivariate normal distributions.
+A matrix of samples from a transformed mixture of multivariate normal distributions.
 }
 \description{
 Generates data from a transformed mixture of multivariate normal distributions.
