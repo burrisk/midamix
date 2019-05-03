@@ -16,7 +16,7 @@
 #' @param seed Random seed.
 #' @return A \code{tibble} consisting of multiply imputed data sets.
 #' @export
-midamix <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, burnin = 100,
+impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, burnin = 100,
     validator = NULL, transformations = NULL, seed = NA) {
     data <- dplyr::as_tibble(data)
     doubles <- sapply(data, is.double)

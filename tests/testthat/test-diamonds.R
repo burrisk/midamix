@@ -1,23 +1,23 @@
-diamonds <- ggplot2::diamonds
-
-set.seed(314)
-diamonds_missing <- purrr::map_df(diamonds, function(x) {x[sample(c(TRUE, NA),
-                                                                  prob = c(0.8, 0.2),
-                                                                  size = length(x),
-                                                                  replace = TRUE)]}) %>%
-  dplyr::sample_n(1000)
-
-imputations <- midamix(diamonds_missing, burnin = 0, n_iter = 100, seed = 314)
-
-my_model <- function(data){
-  lm(log(price) ~ carat, data = data)
-}
-
-model_fits <- imputations %>%
-  fit_model(my_model)
-
-model_results <- model_fits %>%
-  pool_inferences()
+# diamonds <- ggplot2::diamonds
+#
+# set.seed(314)
+# diamonds_missing <- purrr::map_df(diamonds, function(x) {x[sample(c(TRUE, NA),
+#                                                                   prob = c(0.8, 0.2),
+#                                                                   size = length(x),
+#                                                                   replace = TRUE)]}) %>%
+#   dplyr::sample_n(1000)
+#
+# imputations <- impute(diamonds_missing, burnin = 0, n_iter = 100, seed = 314)
+#
+# my_model <- function(data){
+#   lm(log(price) ~ carat, data = data)
+# }
+#
+# model_fits <- imputations %>%
+#   fit_model(my_model)
+#
+# model_results <- model_fits %>%
+#   pool_inferences()
 #
 # mice_imps <- mice(diamonds_missing, m = 10)
 #
