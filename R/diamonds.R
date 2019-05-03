@@ -1,7 +1,7 @@
 #' Prices of 1,000 round cut diamonds.
 #'
 #' A dataset containing the prices and other attributes of 1,000 diamonds.  This is a
-#' subset of the diamonds dataset in ggplot2, where 20% of the data values are missing
+#' subset of the diamonds dataset in ggplot2, where 20 percent of the data values are missing
 #' completely at random
 #'
 #' @format A data frame with 1000 rows and 10 variables:

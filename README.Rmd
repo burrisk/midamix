@@ -25,7 +25,7 @@ options(tibble.print_min = 5, tibble.print_max = 5)
 midamix is an R package dedicated to flexible, tidy handling of missing data.  For numeric and/or ordinal datasets, midamix uses a transformation model coupled with a truncated Dirichlet process mixture model to generate multiple completed datasets.   It contains the following methods for performing principled, little-hassle, multiple imputation.
 
   - `impute()` generates multiply imputed datasets
-  - `fit_models()` fits a model to each of the multiply imputed datasets.
+  - `fit_model()` fits a model to each of the multiply imputed datasets.
   - `pool_inferences()` combines inferences for linear models or generalized linear models fit on each of the datasets via the combining rules of Rubin (1987).
   
 ### Development version
@@ -40,11 +40,88 @@ devtools::install_github("burrisk/midamix")
 
 
 ## Usage
+The following code enables you to obtain multiple completed datasets, stored in a nested tibble.
 
 ```{r, eval = FALSE}
 library(midamix)
+
+data(diamonds)
+diamonds
+#> # A tibble: 1,000 x 10
+#>    carat cut       color clarity depth table price     x     y     z
+#>    <dbl> <ord>     <ord> <ord>   <dbl> <dbl> <int> <dbl> <dbl> <dbl>
+#>  1  1.24 NA        F     SI2      60    NA    5000  7.03  7     4.21
+#>  2  1    Good      NA    SI1      62.7  60      NA  6.24  6.3   3.93
+#>  3  1.06 Premium   NA    SI1      59.6  58    4815  6.67  6.73  3.99
+#>  4 NA    NA        E     SI1      60.6  58    1440 NA    NA     3.2 
+#>  5  0.33 Ideal     E     VS2      NA    54     928  4.47  4.42 NA   
+#>  6  0.56 Ideal     H     NA       62.2  55.3    NA  5.26  5.31  3.28
+#>  7  1.64 NA        NA    NA       60.7  59    9632  7.61  7.65 NA   
+#>  8  0.27 Very Good NA    VVS2     61.9  NA      NA NA    NA     2.59
+#>  9  0.4  Very Good D     VS1      62.9  NA    1123  4.67  4.71 NA   
+#> 10  0.5  Premium   NA    NA       61.4  61    1971  5.14  5.03  3.12
+#> # ... with 990 more rows
+
+diamonds_imputed <- impute(diamonds, imputations = 5, burnin = 100, n_iter = 1000,
+                           seed = 314)
+diamonds_imputed
+
+#> # A tibble: 5 x 2
+#>   imputation data                 
+#>        <int> <list>               
+#> 1          1 <tibble [1,000 × 10]>
+#> 2          2 <tibble [1,000 × 10]>
+#> 3          3 <tibble [1,000 × 10]>
+#> 4          4 <tibble [1,000 × 10]>
+#> 5          5 <tibble [1,000 × 10]>
 ```
 
+You can fit a given model to each of these datasets in a streamlined way.  First, define a function that takes in a dataset and returns a model object.  Then, apply the function `fit_model()` to your imputed datasets.
+
+```{r, eval = FALSE}
+diamonds_linear_model <- function(data){
+  lm(log(price) ~ carat, data = data)
+}
+
+model_fits <- fit_model(diamonds_imputed)
+#> # A tibble: 20 x 6
+#>    imputation term        estimate std.error statistic  p.value
+#>         <int> <chr>          <dbl>     <dbl>     <dbl>    <dbl>
+#>  1          1 (Intercept)  10.4      0.818       12.7  2.06e-34
+#>  2          1 carat         1.95     0.0277      70.5  0.      
+#>  3          1 depth        -0.0450   0.0100      -4.49 7.88e- 6
+#>  4          1 table        -0.0240   0.00641     -3.75 1.87e- 4
+#>  5          2 (Intercept)   9.31     0.827       11.3  8.61e-28
+#>  6          2 carat         1.95     0.0275      70.8  0.      
+#>  7          2 depth        -0.0364   0.0102      -3.59 3.53e- 4
+#>  8          2 table        -0.0142   0.00628     -2.27 2.37e- 2
+#>  9          3 (Intercept)   9.71     0.835       11.6  1.93e-29
+#> 10          3 carat         1.93     0.0279      69.1  0.      
+#> 11          3 depth        -0.0387   0.0102      -3.80 1.54e- 4
+#> 12          3 table        -0.0186   0.00644     -2.88 4.02e- 3
+#> 13          4 (Intercept)   8.68     0.809       10.7  1.73e-25
+#> 14          4 carat         1.95     0.0275      70.8  0.      
+#> 15          4 depth        -0.0258   0.00997     -2.59 9.69e- 3
+#> 16          4 table        -0.0147   0.00634     -2.32 2.04e- 2
+#> 17          5 (Intercept)   9.67     0.851       11.4  3.38e-28
+#> 18          5 carat         1.94     0.0280      69.3  0.      
+#> 19          5 depth        -0.0391   0.0105      -3.72 2.12e- 4
+#> 20          5 table        -0.0174   0.00646     -2.70 7.14e- 3
+```
+
+To aggregate these results for model inference, we use the `pool_inferences` function:
+
+```{r, eval = FALSE}
+model_summary <- pool_inferences(model_fits)
+model_summary
+#> # A tibble: 4 x 5
+#>   term        estimate std.error statistic   p.value
+#>   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
+#> 1 (Intercept)   9.55     1.07         8.89 4.20e-  9
+#> 2 carat         1.94     0.0298      65.3  1.09e-149
+#> 3 depth        -0.0370   0.0127      -2.90 6.81e-  3
+#> 4 table        -0.0178   0.00771     -2.31 2.61e-  2
+```
 
 ## Getting help
 
