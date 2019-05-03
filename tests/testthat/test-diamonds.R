@@ -10,7 +10,7 @@
 # imputations <- impute(diamonds_missing, burnin = 0, n_iter = 100, seed = 314)
 #
 # my_model <- function(data){
-#   lm(log(price) ~ carat, data = data)
+#   lm(log(price) ~ carat + depth + table, data = data)
 # }
 #
 # model_fits <- imputations %>%
@@ -18,7 +18,7 @@
 #
 # model_results <- model_fits %>%
 #   pool_inferences()
-#
+# #
 # mice_imps <- mice(diamonds_missing, m = 10)
 #
 # comp_1 <- mice::complete(mice_imps, action = 1)
