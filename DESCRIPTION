@@ -4,12 +4,20 @@ Title: midamix: Bayesian multiple imputation for mixed data
 Version: 0.1.0
 Author: Kyle Burris
 Maintainer: Kyle Burris <kylecburris@gmail.com>
-Description: Multiple imputation for data analysis with mixed data.
+Description: Multiple imputation for data analysis via mixtures.
 License: GPL-2
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.1.1
 Imports: 
-    mvtnorm
+    dplyr,
+    broom,
+    mvnfast,
+    progress,
+    purrr,
+    tibble,
+    tidyr,
+    truncnorm,
+    rlang
 Suggests: 
     testthat

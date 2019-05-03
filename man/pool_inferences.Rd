@@ -2,8 +2,7 @@
 % Please edit documentation in R/pool_inferences.R
 \name{pool_inferences}
 \alias{pool_inferences}
-\title{Pools inferences for regression coefficients for linear models and generalized linear
-models}
+\title{Combine Multiple Imputations}
 \usage{
 pool_inferences(model_fits, by_significance = FALSE)
 }

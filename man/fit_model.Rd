@@ -2,7 +2,7 @@
 % Please edit documentation in R/pool_inferences.R
 \name{fit_model}
 \alias{fit_model}
-\title{Fits a user-specified model to each imputed dataset}
+\title{Fit multiple models}
 \usage{
 fit_model(imputations, model_function)
 }

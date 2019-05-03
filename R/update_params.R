@@ -1,5 +1,3 @@
-#' @importFrom magrittr '%>%'
-
 # update_alpha <- function(model_params, hyperpars){ a_alpha <- hyperpars$a_alpha b_alpha <-
 # hyperpars$b_alpha cluster_probs <- model_params$cluster_probs K <- length(cluster_probs)
 # alpha <- rgamma(1, a_alpha + K - 1, b_alpha - log(cluster_probs[K])) model_params$alpha <-
