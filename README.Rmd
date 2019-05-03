@@ -22,7 +22,7 @@ options(tibble.print_min = 5, tibble.print_max = 5)
 
 ## Overview
 
-midamix is an R package dedicated to flexible, tidy handling of missing data.  For numeric and/or ordinal datasets, midamix uses a transformation model coupled with a truncated Dirichlet process mixture model to generate multiple completed datasets.   It contains the following methods for performing principled, little-hassle, multiple imputation.
+midamix is an R package dedicated to flexible, tidy handling of missing data.  For numeric and/or ordinal datasets, midamix uses a transformation model coupled with a truncated Dirichlet process mixture model to generate multiple completed datasets.   It contains the following easy-to-use methods for performing principled multiple imputation.
 
   - `impute()` generates multiply imputed datasets
   - `fit_model()` fits a model to each of the multiply imputed datasets.
@@ -46,7 +46,7 @@ The following code enables you to obtain multiple completed datasets, stored in 
 library(midamix)
 
 data(diamonds)
-diamonds
+print(diamonds)
 #> # A tibble: 1,000 x 10
 #>    carat cut       color clarity depth table price     x     y     z
 #>    <dbl> <ord>     <ord> <ord>   <dbl> <dbl> <int> <dbl> <dbl> <dbl>
@@ -64,8 +64,7 @@ diamonds
 
 diamonds_imputed <- impute(diamonds, imputations = 5, burnin = 100, n_iter = 1000,
                            seed = 314)
-diamonds_imputed
-
+print(diamonds_imputed)
 #> # A tibble: 5 x 2
 #>   imputation data                 
 #>        <int> <list>               
@@ -76,14 +75,36 @@ diamonds_imputed
 #> 5          5 <tibble [1,000 × 10]>
 ```
 
+To extract the second imputed dataset, for example, you could run
+
+```{r, eval = FALSE}
+print(diamonds_imputed$data[[2]])
+#> # A tibble: 1,000 x 10
+#>    carat cut       color clarity depth table price     x     y     z
+#>    <dbl> <ord>     <ord> <ord>   <dbl> <dbl> <int> <dbl> <dbl> <dbl>
+#>  1  1.24 Premium   F     SI2      60    60    5000  7.03  7     4.21
+#>  2  1    Good      G     SI1      62.7  60    3713  6.24  6.3   3.93
+#>  3  1.06 Premium   G     SI1      59.6  58    4815  6.67  6.73  3.99
+#>  4  0.51 Very Good E     SI1      60.6  58    1440  5.44  5.3   3.2 
+#>  5  0.33 Ideal     E     VS2      62.9  54     928  4.47  4.42  2.82
+#>  6  0.56 Ideal     H     VVS1     62.2  55.3  1846  5.26  5.31  3.28
+#>  7  1.64 Very Good I     SI2      60.7  59    9632  7.61  7.65  4.6 
+#>  8  0.27 Very Good F     VVS2     61.9  60     499  4.16  4.15  2.59
+#>  9  0.4  Very Good D     VS1      62.9  56    1123  4.67  4.71  3   
+#> 10  0.5  Premium   E     VS1      61.4  61    1971  5.14  5.03  3.12
+#> # ... with 990 more rows
+```
+
+
 You can fit a given model to each of these datasets in a streamlined way.  First, define a function that takes in a dataset and returns a model object.  Then, apply the function `fit_model()` to your imputed datasets.
 
 ```{r, eval = FALSE}
 diamonds_linear_model <- function(data){
-  lm(log(price) ~ carat, data = data)
+  lm(log(price) ~ carat + depth + table, data = data)
 }
 
-model_fits <- fit_model(diamonds_imputed)
+model_fits <- fit_model(diamonds_imputed, diamonds_linear_model)
+print(model_fits)
 #> # A tibble: 20 x 6
 #>    imputation term        estimate std.error statistic  p.value
 #>         <int> <chr>          <dbl>     <dbl>     <dbl>    <dbl>
@@ -113,7 +134,7 @@ To aggregate these results for model inference, we use the `pool_inferences` fun
 
 ```{r, eval = FALSE}
 model_summary <- pool_inferences(model_fits)
-model_summary
+print(model_summary)
 #> # A tibble: 4 x 5
 #>   term        estimate std.error statistic   p.value
 #>   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
