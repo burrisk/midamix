@@ -16,5 +16,5 @@ A tibble with inferences obtained by multiple imputation combining rules.
 }
 \description{
 Pools inferences for regression coefficients for linear models and generalized linear
-models
+models.
 }

@@ -7,7 +7,7 @@
 fit_model(imputations, model_function)
 }
 \arguments{
-\item{imputations}{A nested tibble, representing multiply imputed datasets}
+\item{imputations}{A nested tibble, representing multiply imputed datasets.}
 
 \item{model_function}{A function that takes a dataset as input and returns a fitted
 model object as output.}
@@ -16,5 +16,5 @@ model object as output.}
 A tibble with the fits of each model.
 }
 \description{
-Fits a user-specified model to each imputed dataset
+Fits a user-specified model to each imputed dataset.
 }
