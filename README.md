@@ -7,6 +7,7 @@
 
 [![Travis build
 status](https://travis-ci.org/burrisk/midamix.svg?branch=master)](https://travis-ci.org/burrisk/midamix)
+![](https://img.shields.io/badge/lifecycle-experimental-orange.svg)
 <!-- badges: end -->
 
 ## Overview
@@ -14,8 +15,8 @@ status](https://travis-ci.org/burrisk/midamix.svg?branch=master)](https://travis
 midamix is an R package dedicated to flexible, tidy handling of missing
 data. For numeric and/or ordinal datasets, midamix uses a transformation
 model coupled with a truncated Dirichlet process mixture model to
-generate multiple completed datasets. It contains the following methods
-for performing principled, little-hassle, multiple imputation.
+generate multiple completed datasets. It contains the following
+easy-to-use methods for performing principled multiple imputation.
 
   - `impute()` generates multiply imputed datasets
   - `fit_model()` fits a model to each of the multiply imputed datasets.

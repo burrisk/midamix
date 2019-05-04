@@ -18,6 +18,7 @@ options(tibble.print_min = 5, tibble.print_max = 5)
 
 <!-- badges: start -->
 [![Travis build status](https://travis-ci.org/burrisk/midamix.svg?branch=master)](https://travis-ci.org/burrisk/midamix)
+![](https://img.shields.io/badge/lifecycle-experimental-orange.svg)
 <!-- badges: end -->
 
 ## Overview
