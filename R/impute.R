@@ -9,37 +9,51 @@
 #' @param max_clusters The maximum number of clusters for the mixture model.
 #' @param n_iter Number of iterations for the MCMC sampler.
 #' @param burnin Number of iterations for initial burn-in period.
-#' @param validator A function that indicates the validity of imputations.  If \code{NULL},
-#' the data are assumed unconstrained.
-#' @param transformations Transformations of response variables to latent scale, defaults
-#' to empirical CDFs
 #' @param seed Random seed.
 #' @return A \code{tibble} consisting of multiply imputed data sets.
 #' @export
 impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, burnin = 100,
-    validator = NULL, transformations = NULL, seed = NA) {
+                   seed = 1) {
+    if (!(is.data.frame(data))) {
+        stop("Argument data must be a data frame.")
+    }
+    if (!(is.numeric(imputations)  | imputations <= 0)) {
+        stop("The number of imputed data sets must be a positive integer.")
+    }
+    if (!(is.numeric(max_clusters)) | max_clusters <= 0) {
+        stop("The maximum number of clusters must be a positive integer.")
+    }
+    if (!(is.numeric(n_iter)) | n_iter < imputations) {
+        stop("The number of iterations must be an integer at least equal to number
+             of imputed data sets.")
+    }
+    if (!(is.numeric(burnin)) | burnin < 0) {
+        stop("The number of burn-in iterations must be a non-nnegative integer.")
+    }
     data <- dplyr::as_tibble(data)
     doubles <- sapply(data, is.double)
     integers <- sapply(data, is.integer)
     ordered_factors <- sapply(data, is.ordered)
-    p <- sum(doubles) + sum(integers) + sum(ordered_factors)
-    n <- nrow(data)
+    non_categorical <- which(doubles | integers | ordered_factors)
+    data_numeric <- data[, non_categorical]
+    any_observed <- sapply(data_numeric, function(x) !(all(is.na(x))))
+    if (sum(any_observed) != ncol(data_numeric)) {
+        warning("There is a columnn with all NA values.  This is excluded when
+                performing multiple imputation.")
+        data_numeric <- data_numeric[, any_observed]
+    }
+    data_categorical <- data[, -(non_categorical)]
+    p <- ncol(data_numeric)
+    n <- nrow(data_numeric)
     K <- max_clusters
-    if (p != ncol(data)) {
-        stop("All variables must either be numeric, integer, or ordered factors.")
+    set.seed(seed)
+    # if (is.null(validator)) {
+    validator <- function(y) {
+        TRUE
     }
-    if (is.na(seed)) {
-        set.seed(314)
-    } else {
-        set.seed(seed)
-    }
-    if (is.null(validator)) {
-        validator <- function(y) {
-            TRUE
-        }
-    }
-    Y <- data.matrix(data)
-    if (is.null(transformations)) {
+    # }
+    Y <- data.matrix(data_numeric)
+    # if (is.null(transformations)) {
         funs <- lapply(1:p, function(index) {
             y <- na.omit(Y[, index])
             f <- function(z) {
@@ -62,7 +76,7 @@ impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, bur
         })
 
         transformations <- list(funs = funs, inverse_funs = inverse_funs)
-    }
+    #}
     hyperpars <- list(a_alpha = 0.5, b_alpha = 0.5, Sigma = diag(p), nu = p + 5, h = 4/3, mu0 = rep(0,
         p))
     alpha <- 1
@@ -95,13 +109,13 @@ impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, bur
         applyTransformations(samps$Z[, , index], transformations$funs)
     })
     imp_tibbles <- lapply(imp_list, function(df) {
+        colnames(df) <- colnames(data_numeric)
         df <- df %>% dplyr::as_tibble() %>% dplyr::mutate_at(which(integers), as.integer) %>%
             dplyr::mutate_at(which(ordered_factors), as.ordered)
-        colnames(df) <- colnames(data)
         for (j in which(ordered_factors)) {
-            levels(df[[j]]) <- levels(data[[j]])
+            levels(df[[j]]) <- levels(data_numeric[[j]])
         }
-        df
+        dplyr::bind_cols(data_categorical, df)
     })
     result <- tibble::tibble(imputation = 1:imputations, data = imp_tibbles)
     return(result)

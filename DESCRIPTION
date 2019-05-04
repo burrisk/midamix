@@ -1,6 +1,6 @@
 Package: midamix
 Type: Package
-Title: midamix: Bayesian multiple imputation for mixed data
+Title: Bayesian multiple imputation via mixtures
 Version: 0.1.0
 Author: Kyle Burris
 Maintainer: Kyle Burris <kylecburris@gmail.com>

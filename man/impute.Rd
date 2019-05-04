@@ -5,8 +5,7 @@
 \title{Multiple imputation for data analysis via mixtures}
 \usage{
 impute(data, imputations = 10, max_clusters = 15, n_iter = 1000,
-  burnin = 100, validator = NULL, transformations = NULL,
-  seed = NA)
+  burnin = 100, seed = 1)
 }
 \arguments{
 \item{data}{A tibble, data frame, or matrix, consisting of numeric, integer,
@@ -19,12 +18,6 @@ or ordered factor columns.}
 \item{n_iter}{Number of iterations for the MCMC sampler.}
 
 \item{burnin}{Number of iterations for initial burn-in period.}
-
-\item{validator}{A function that indicates the validity of imputations.  If \code{NULL},
-the data are assumed unconstrained.}
-
-\item{transformations}{Transformations of response variables to latent scale, defaults
-to empirical CDFs}
 
 \item{seed}{Random seed.}
 }
