@@ -3,7 +3,7 @@
 #' Uses a Dirichlet Process Mixture Transformation Model to sample missing data values
 #' from the corresponding posterior distribution.
 #'
-#' @param data A tibble, data frame, or matrix, consisting of numeric, integer,
+#' @param data A data frame, consisting of numeric, integer,
 #' or ordered factor columns.
 #' @param imputations The number of imputed datasets to return, defaults to 10.
 #' @param max_clusters The maximum number of clusters for the mixture model.
