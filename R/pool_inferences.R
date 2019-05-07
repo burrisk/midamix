@@ -8,7 +8,7 @@
 #' @return A tibble with the fits of each model.
 #' @export
 fit_model <- function(imputations, model_function) {
-    imps_model <- imputations %>% dplyr::mutate(fit = purrr::map(.data$data, ~my_model(data = .x)),
+    imps_model <- imputations %>% dplyr::mutate(fit = purrr::map(.data$data, ~model_function(data = .x)),
         tidied = purrr::map(.data$fit, broom::tidy)) %>% tidyr::unnest(.data$tidied)
     imps_model
 }
