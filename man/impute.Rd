@@ -5,10 +5,10 @@
 \title{Multiple imputation for data analysis via mixtures}
 \usage{
 impute(data, imputations = 10, max_clusters = 15, n_iter = 1000,
-  burnin = 100, seed = 1)
+  burnin = 100, validator = NULL, seed = 1)
 }
 \arguments{
-\item{data}{A tibble, data frame, or matrix, consisting of numeric, integer,
+\item{data}{A data frame, consisting of numeric, integer,
 or ordered factor columns.}
 
 \item{imputations}{The number of imputed datasets to return, defaults to 10.}
@@ -18,6 +18,9 @@ or ordered factor columns.}
 \item{n_iter}{Number of iterations for the MCMC sampler.}
 
 \item{burnin}{Number of iterations for initial burn-in period.}
+
+\item{validator}{A function that takes in an observation and determines whether
+it is feasible.}
 
 \item{seed}{Random seed.}
 }

@@ -100,11 +100,11 @@ print(diamonds_imputed$data[[2]])
 You can fit a given model to each of these datasets in a streamlined way.  First, define a function that takes in a dataset and returns a model object.  Then, apply the function `fit_model()` to your imputed datasets.
 
 ```{r, eval = FALSE}
-diamonds_linear_model <- function(data){
+my_model <- function(data){
   lm(log(price) ~ carat + depth + table, data = data)
 }
 
-model_fits <- fit_model(diamonds_imputed, diamonds_linear_model)
+model_fits <- fit_model(diamonds_imputed, my_model)
 print(model_fits)
 #> # A tibble: 20 x 6
 #>    imputation term        estimate std.error statistic  p.value

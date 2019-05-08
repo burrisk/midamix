@@ -9,6 +9,8 @@
 #' @param max_clusters The maximum number of clusters for the mixture model.
 #' @param n_iter Number of iterations for the MCMC sampler.
 #' @param burnin Number of iterations for initial burn-in period.
+#' @param validator A function that takes in an observation and determines whether
+#' it is feasible.
 #' @param seed Random seed.
 #' @return A \code{tibble} consisting of multiply imputed data sets.
 #' @export
