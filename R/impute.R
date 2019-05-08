@@ -13,7 +13,7 @@
 #' @return A \code{tibble} consisting of multiply imputed data sets.
 #' @export
 impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, burnin = 100,
-                   seed = 1) {
+                   validator = NULL, seed = 1) {
     if (!(is.data.frame(data))) {
         stop("Argument data must be a data frame.")
     }
@@ -47,36 +47,29 @@ impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, bur
     n <- nrow(data_numeric)
     K <- max_clusters
     set.seed(seed)
-    # if (is.null(validator)) {
-    validator <- function(y) {
-        TRUE
-    }
-    # }
     Y <- data.matrix(data_numeric)
-    # if (is.null(transformations)) {
-        funs <- lapply(1:p, function(index) {
-            y <- na.omit(Y[, index])
-            f <- function(z) {
-                unname(quantile(y, probs = pnorm(z), type = 1))
-            }
-        })
+    funs <- lapply(1:p, function(index) {
+        y <- na.omit(Y[, index])
+        f <- function(z) {
+            unname(quantile(y, probs = pnorm(z), type = 1))
+        }
+    })
 
-        inverse_funs <- lapply(1:p, function(index) {
-            y <- na.omit(Y[, index])
-            y_aug <- c(y, -Inf, Inf)
-            y_sort <- sort(unique(y_aug))
-            cdf <- ecdf(y)
-            f <- function(x) {
-                x_inds <- match(x, y_sort)
-                if (anyNA(x_inds)) {
-                  stop("Invalid inverse transformation.")
-                }
-                qnorm(cbind(cdf(y_sort[x_inds - 1]), cdf(x)))
+    inverse_funs <- lapply(1:p, function(index) {
+        y <- na.omit(Y[, index])
+        y_aug <- c(y, -Inf, Inf)
+        y_sort <- sort(unique(y_aug))
+        cdf <- ecdf(y)
+        f <- function(x) {
+            x_inds <- match(x, y_sort)
+            if (anyNA(x_inds)) {
+              stop("Invalid inverse transformation.")
             }
-        })
+            qnorm(cbind(cdf(y_sort[x_inds - 1]), cdf(x)))
+        }
+    })
 
-        transformations <- list(funs = funs, inverse_funs = inverse_funs)
-    #}
+    transformations <- list(funs = funs, inverse_funs = inverse_funs)
     hyperpars <- list(a_alpha = 0.5, b_alpha = 0.5, Sigma = diag(p), nu = p + 5, h = 4/3, mu0 = rep(0,
         p))
     alpha <- 1
@@ -92,18 +85,18 @@ impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, bur
         Z[yj_mis, j] <- rnorm(length(yj_mis), 0, 1)
     }
 
-    cluster_means <- rmvn(K, mu = hyperpars$mu0, sigma = hyperpars$Sigma)
+    cluster_means <- matrix(0, nrow = K, ncol = p)
     clusters <- sample(1:3, n, replace = T)
     cluster_covs <- array(rep(diag(p), K), dim = c(p, p, K))
     cluster_precs <- array(rep(diag(p), K), dim = c(p, p, K))
-    for (i in 1:K) {
-        cluster_covs[, , i] <- riwish(hyperpars$nu, hyperpars$Sigma)
-        cluster_precs[, , i] <- solve(cluster_covs[, , i])
-    }
+    Zc <- matrix(nrow = 0, ncol = p)
+    obs_map <- c()
     model_params <- list(Y = Y, Z = Z, clusters = clusters, cluster_means = cluster_means, cluster_covs = cluster_covs,
-        cluster_precs = cluster_precs, log_cluster_probs = log_cluster_probs, V = V, alpha = alpha)
-    samps <- midamix_mcmc(model_params, hyperpars, transformations, n_iter = n_iter, burnin = burnin,
-        monitor = c("Z"))
+        cluster_precs = cluster_precs, log_cluster_probs = log_cluster_probs, V = V,
+        alpha = alpha, Zc = Zc, obs_map = obs_map)
+    samps <- midamix_mcmc(model_params, hyperpars, transformations, validator,
+                          n_iter = n_iter, burnin = burnin,
+        monitor = c("Z", "Zc"))
     imputation_indices <- seq(0, n_iter, length = imputations + 1)[-1]
     imp_list <- lapply(imputation_indices, function(index) {
         applyTransformations(samps$Z[, , index], transformations$funs)

@@ -7,7 +7,8 @@ update_alpha <- function(model_params, hyperpars) {
 
 update_v <- function(model_params) {
     alpha <- model_params$alpha
-    clusters <- model_params$clusters
+    obs_map <- model_params$obs_map
+    clusters <- c(model_params$clusters, model_params$clusters[obs_map])
     K <- length(model_params$log_cluster_probs)
     V <- rep(1, K)
     for (k in 1:(K - 1)) {
@@ -32,25 +33,43 @@ update_clusters <- function(model_params) {
     cluster_covs <- model_params$cluster_covs
     log_cluster_probs <- model_params$log_cluster_probs
     Z <- model_params$Z
+    Zc <- model_params$Zc
     K <- dim(cluster_covs)[3]
     n <- nrow(Z)
     prob_mat <- matrix(log_cluster_probs, nrow = n, ncol = K, byrow = T)
-    for (k in 1:K) {
-        prob_mat[, k] <- prob_mat[, k] + dmvn(Z, cluster_means[k, ], cluster_covs[,
-            , k], log = T)
+    if (nrow(model_params$Zc) == 0){
+        for (k in 1:K) {
+            prob_mat[, k] <- prob_mat[, k] + dmvn(Z, cluster_means[k, ], cluster_covs[,
+                                                                                      , k], log = T)
+        }
+        model_params$clusters <- apply(exp(prob_mat), 1, function(r) {
+            sample(1:K, 1, prob = r)
+        })
+        return(model_params)
+    } else{
+        obs_map <- model_params$obs_map
+        for (i in 1:n){
+            Zc_obs <- Zc[which(obs_map == i), ]
+            Z_obs <- rbind(Z[i, ], Zc_obs)
+            for (k in 1:K) {
+                prob_mat[i, k] <- prob_mat[i, k] + sum(dmvn(Z_obs, cluster_means[k, ], cluster_covs[,
+                                                                       , k], log = T))
+            }
+        }
+        model_params$clusters <- apply(exp(prob_mat), 1, function(r) {
+            sample(1:K, 1, prob = r)
+        })
+        model_params
     }
-    model_params$clusters <- apply(exp(prob_mat), 1, function(r) {
-        sample(1:K, 1, prob = r)
-    })
-    model_params
 }
 
 update_cluster_means <- function(model_params, hyperpars) {
     mu0 <- matrix(hyperpars$mu0, ncol = 1)
     h <- hyperpars$h
     cluster_precs <- model_params$cluster_precs
-    Z <- model_params$Z
-    clusters <- model_params$clusters
+    Z <- rbind(model_params$Z, model_params$Zc)
+    obs_map <- model_params$obs_map
+    clusters <- c(model_params$clusters, model_params$clusters[obs_map])
     p <- length(hyperpars$mu0)
     K <- dim(cluster_precs)[3]
     cluster_means <- matrix(nrow = K, ncol = p)
@@ -78,8 +97,9 @@ update_cluster_covs <- function(model_params, hyperpars) {
     h <- hyperpars$h
     Sigma <- hyperpars$Sigma
     cluster_means <- model_params$cluster_means
-    Z <- model_params$Z
-    clusters <- model_params$clusters
+    Z <- rbind(model_params$Z, model_params$Zc)
+    obs_map <- model_params$obs_map
+    clusters <-  c(model_params$clusters, model_params$clusters[obs_map])
     K <- nrow(cluster_means)
     p <- ncol(Z)
     cluster_covs <- model_params$cluster_covs
@@ -173,18 +193,70 @@ update_zmis <- function(model_params, transformations, validator) {
             cond_var <- cluster_cov[missing_values, missing_values] - Sigma12 %*% Sigma22_inv %*%
                 t(Sigma12)
         }
-        # TODO add constraints
-        z_mis <- rmvn(1, cond_mean, cond_var)
+        if (is.null(validator)){
+            z_mis <- rmvn(1, cond_mean, cond_var)
+        } else{
+            in_region <- F
+            z_star <- Z[i, , drop = F]
+            while(!(in_region)){
+                z_mis <- rmvn(1, cond_mean, cond_var)
+                z_star[1, missing_values] <- z_mis
+                y_star <- applyTransformations(z_star, transformations$funs)
+                in_region <- validator(y_star)
+            }
+        }
         Z[i, missing_values] <- z_mis
     }
     model_params$Z <- Z
     model_params
 }
 
+update_zc <- function(model_params, transformations, validator){
+    Z <- model_params$Z
+    n <- nrow(Z)
+    p <- ncol(Z)
+    Zc <- matrix(nrow = 0, ncol = p)
+    obs_map <- c()
+    if (is.null(validator)){
+        model_params$obs_map <- obs_map
+        model_params$Zc <- Zc
+        return(model_params)
+    }
+    clusters <- model_params$clusters
+    cluster_means <- model_params$cluster_means
+    cluster_covs <- model_params$cluster_covs
+    for (i in 1:n){
+        cl <- clusters[i]
+        mu <- cluster_means[cl, ]
+        sigma <- cluster_covs[, , cl]
+        accepted <- F
+        while(!(accepted)){
+            Z_proposed <- rmvn(1, mu, sigma)
+            Y_proposed <- applyTransformations(Z_proposed, transformations$funs)
+            accepted <- apply(Y_proposed, 1, validator)
+            if (!(accepted)){
+                Zc <- rbind(Zc, Z_proposed)
+                obs_map <- c(obs_map, i)
+            }
+        }
+    }
+
+    model_params$Zc <- Zc
+    model_params$obs_map <- obs_map
+    model_params
+}
+
 update_model_params <- function(model_params, hyperpars, transformations, validator) {
-    model_params <- model_params %>% update_zobs(transformations) %>% update_zmis(transformations,
-        validator) %>% update_cluster_covs(hyperpars) %>% update_cluster_means(hyperpars) %>%
-        update_clusters() %>% update_v() %>% calculate_log_cluster_probs() %>% update_alpha(hyperpars)
+    model_params <- model_params %>%
+        update_zmis(transformations, validator) %>%
+        update_zobs(transformations) %>%
+        update_cluster_covs(hyperpars) %>%
+        update_cluster_means(hyperpars) %>%
+        update_zc(transformations, validator) %>%
+        update_clusters() %>%
+        update_v() %>%
+        calculate_log_cluster_probs() %>%
+        update_alpha(hyperpars)
     model_params
 }
 
@@ -204,7 +276,8 @@ midamix_mcmc <- function(inits, hyperpars, transformations, validator = NULL, n_
         for (i in 1:burnin) {
             pb_burnin$tick()
             Sys.sleep(0.01)
-            model_params <- update_model_params(model_params, hyperpars, transformations)
+            model_params <- update_model_params(model_params, hyperpars, transformations,
+                                                validator)
         }
     }
     pb_sampling <- progress::progress_bar$new(format = "  sampling [:bar] :percent eta: :eta",
@@ -213,7 +286,8 @@ midamix_mcmc <- function(inits, hyperpars, transformations, validator = NULL, n_
     for (i in 1:n_iter) {
         stop <- T
         tryCatch({
-            model_params <- update_model_params(model_params, hyperpars, transformations)
+            model_params <- update_model_params(model_params, hyperpars, transformations,
+                                                validator)
             stop <- F
         }, error = function(e) {
 
@@ -233,3 +307,4 @@ midamix_mcmc <- function(inits, hyperpars, transformations, validator = NULL, n_
     output <- lapply(output, simplify2array)
     output
 }
+
