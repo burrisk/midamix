@@ -1,9 +1,9 @@
 #' American community survey data from the state of Alabama.
 #'
-#' A public-use dataset containing information about a 1 percent subsample of Alabama
+#' A public-use dataset containing information about a 0.1 percent subsample of Alabama
 #' residents in the American community survey.
 #'
-#' @format A data frame with 46847 rows and 7 variables:
+#' @format A data frame with 4680 rows and 7 variables:
 #' \describe{
 #'   \item{Age}{age of the individual, in years}
 #'   \item{Medicare}{an indicator for whether the individual receives Medicare benefits}

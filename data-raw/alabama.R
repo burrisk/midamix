@@ -34,4 +34,19 @@ alabama <- alabama %>%
   mutate_at(oned_variables, na_to_one) %>%
   dplyr::filter(Income >= 0, Age >= 65 | Medicare == 0 | Disability == 1)
 
+set.seed(314)
+validator <- function(y){
+  impossible <- (y[5] >= 3 & y[1] <= 3) |
+    (y[5] >= 16 & y[1] <= 11) |
+    (y[5] >= 21 & y[1] <= 15) |
+    (y[5] >= 24 & y[1] <= 19) |
+    (y[1] < 65 & y[2] == 1 & y[4] == 0) |
+    (y[6] > 100000 & y[3] == 1) |
+    (y[7] >= 1 & y[6] <= 0)
+  !(impossible)
+}
+
+alabama <- alabama[apply(alabama, 1, validator), ] %>%
+  dplyr::sample_frac(0.1)
+
 usethis::use_data(alabama)
