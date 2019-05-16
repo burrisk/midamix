@@ -45,63 +45,68 @@ impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, bur
         data_numeric <- data_numeric[, any_observed]
     }
     data_categorical <- data[, -(non_categorical)]
-    p <- ncol(data_numeric)
-    n <- nrow(data_numeric)
-    K <- max_clusters
+    # p <- ncol(data_numeric)
+    # n <- nrow(data_numeric)
+    # K <- max_clusters
+    # set.seed(seed)
+    # Y <- data.matrix(data_numeric)
+    # funs <- lapply(1:p, function(index) {
+    #     y <- na.omit(Y[, index])
+    #     f <- function(z) {
+    #         unname(quantile(y, probs = pnorm(z), type = 1))
+    #     }
+    # })
+    #
+    # inverse_funs <- lapply(1:p, function(index) {
+    #     y <- na.omit(Y[, index])
+    #     y_aug <- c(y, -Inf, Inf)
+    #     y_sort <- sort(unique(y_aug))
+    #     cdf <- ecdf(y)
+    #     f <- function(x) {
+    #         x_inds <- match(x, y_sort)
+    #         if (anyNA(x_inds)) {
+    #           stop("Invalid inverse transformation.")
+    #         }
+    #         qnorm(cbind(cdf(y_sort[x_inds - 1]), cdf(x)))
+    #     }
+    # })
+    #
+    # transformations <- list(funs = funs, inverse_funs = inverse_funs)
+    # hyperpars <- list(a_alpha = 0.5, b_alpha = 0.5, Sigma = diag(p), nu = p + 5, h = 4/3, mu0 = rep(0,
+    #     p))
+    # alpha <- 1
+    # V <- c(rep(0.5, K - 1), 1)
+    # log_cluster_probs <- calculate_log_cluster_probs(list(V = V))$log_cluster_probs
+    # Z <- matrix(nrow = n, ncol = p)
+    # for (j in 1:p) {
+    #     yj_obs <- which(!(is.na(Y[, j])))
+    #     yj_mis <- which(is.na(Y[, j]))
+    #     boundsZ_obs <- transformations$inverse_funs[[j]](Y[yj_obs, j])
+    #     Z[yj_obs, j] <- truncnorm::rtruncnorm(length(yj_obs), a = boundsZ_obs[, 1], b = boundsZ_obs[,
+    #         2])
+    #     Z[yj_mis, j] <- rnorm(length(yj_mis), 0, 1)
+    # }
+    #
+    # cluster_means <- matrix(0, nrow = K, ncol = p)
+    # clusters <- sample(1:3, n, replace = T)
+    # cluster_covs <- array(rep(diag(p), K), dim = c(p, p, K))
+    # cluster_precs <- array(rep(diag(p), K), dim = c(p, p, K))
+    # Zc <- matrix(nrow = 0, ncol = p)
+    # obs_map <- c()
+    # model_params <- list(Y = Y, Z = Z, clusters = clusters, cluster_means = cluster_means, cluster_covs = cluster_covs,
+    #     cluster_precs = cluster_precs, log_cluster_probs = log_cluster_probs, V = V,
+    #     alpha = alpha, Zc = Zc, obs_map = obs_map)
     set.seed(seed)
-    Y <- data.matrix(data_numeric)
-    funs <- lapply(1:p, function(index) {
-        y <- na.omit(Y[, index])
-        f <- function(z) {
-            unname(quantile(y, probs = pnorm(z), type = 1))
-        }
-    })
-
-    inverse_funs <- lapply(1:p, function(index) {
-        y <- na.omit(Y[, index])
-        y_aug <- c(y, -Inf, Inf)
-        y_sort <- sort(unique(y_aug))
-        cdf <- ecdf(y)
-        f <- function(x) {
-            x_inds <- match(x, y_sort)
-            if (anyNA(x_inds)) {
-              stop("Invalid inverse transformation.")
-            }
-            qnorm(cbind(cdf(y_sort[x_inds - 1]), cdf(x)))
-        }
-    })
-
-    transformations <- list(funs = funs, inverse_funs = inverse_funs)
-    hyperpars <- list(a_alpha = 0.5, b_alpha = 0.5, Sigma = diag(p), nu = p + 5, h = 4/3, mu0 = rep(0,
-        p))
-    alpha <- 1
-    V <- c(rep(0.5, K - 1), 1)
-    log_cluster_probs <- calculate_log_cluster_probs(list(V = V))$log_cluster_probs
-    Z <- matrix(nrow = n, ncol = p)
-    for (j in 1:p) {
-        yj_obs <- which(!(is.na(Y[, j])))
-        yj_mis <- which(is.na(Y[, j]))
-        boundsZ_obs <- transformations$inverse_funs[[j]](Y[yj_obs, j])
-        Z[yj_obs, j] <- truncnorm::rtruncnorm(length(yj_obs), a = boundsZ_obs[, 1], b = boundsZ_obs[,
-            2])
-        Z[yj_mis, j] <- rnorm(length(yj_mis), 0, 1)
-    }
-
-    cluster_means <- matrix(0, nrow = K, ncol = p)
-    clusters <- sample(1:3, n, replace = T)
-    cluster_covs <- array(rep(diag(p), K), dim = c(p, p, K))
-    cluster_precs <- array(rep(diag(p), K), dim = c(p, p, K))
-    Zc <- matrix(nrow = 0, ncol = p)
-    obs_map <- c()
-    model_params <- list(Y = Y, Z = Z, clusters = clusters, cluster_means = cluster_means, cluster_covs = cluster_covs,
-        cluster_precs = cluster_precs, log_cluster_probs = log_cluster_probs, V = V,
-        alpha = alpha, Zc = Zc, obs_map = obs_map)
-    samps <- midamix_mcmc(model_params, hyperpars, transformations, validator,
+    inits <- initialize_pars(data_numeric, max_clusters)
+    samps <- midamix_mcmc(inits = inits$model_params,
+                          hyperpars = inits$hyperpars,
+                          transformations = inits$transformations,
+                          validator = validator,
                           n_iter = n_iter, burnin = burnin,
-        monitor = c("Z", "Zc"))
+        monitor = c("Z"))
     imputation_indices <- seq(0, n_iter, length = imputations + 1)[-1]
     imp_list <- lapply(imputation_indices, function(index) {
-        applyTransformations(samps$Z[, , index], transformations$funs)
+        applyTransformations(samps$Z[, , index], inits$transformations$funs)
     })
     imp_tibbles <- lapply(imp_list, function(df) {
         colnames(df) <- colnames(data_numeric)
