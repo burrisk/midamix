@@ -5,7 +5,7 @@
 \title{Multiple imputation for data analysis via mixtures}
 \usage{
 impute(data, imputations = 10, max_clusters = 15, n_iter = 1000,
-  burnin = 100, validator = NULL, seed = 1)
+  burnin = 100, validator = NULL, cap = NULL, seed = 1)
 }
 \arguments{
 \item{data}{A data frame, consisting of numeric, integer,
@@ -21,6 +21,8 @@ or ordered factor columns.}
 
 \item{validator}{A function that takes in an observation and determines whether
 it is feasible.}
+
+\item{cap}{Maximum number of rejected proposals allowed for the constrained sampler}
 
 \item{seed}{Random seed.}
 }

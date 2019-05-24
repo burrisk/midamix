@@ -211,7 +211,7 @@ update_zmis <- function(model_params, transformations, validator) {
     model_params
 }
 
-update_zc <- function(model_params, transformations, validator){
+update_zc <- function(model_params, transformations, validator, cap){
     Z <- model_params$Z
     n <- nrow(Z)
     p <- ncol(Z)
@@ -222,6 +222,9 @@ update_zc <- function(model_params, transformations, validator){
         model_params$Zc <- Zc
         return(model_params)
     }
+    if (is.null(cap)){
+        cap <- Inf
+    }
     clusters <- model_params$clusters
     cluster_means <- model_params$cluster_means
     cluster_covs <- model_params$cluster_covs
@@ -230,13 +233,15 @@ update_zc <- function(model_params, transformations, validator){
         mu <- cluster_means[cl, ]
         sigma <- cluster_covs[, , cl]
         accepted <- F
-        while(!(accepted)){
+        num_rejected <- 0
+        while(!(accepted) & (num_rejected < cap)){
             Z_proposed <- rmvn(1, mu, sigma)
             Y_proposed <- applyTransformations(Z_proposed, transformations$funs)
             accepted <- apply(Y_proposed, 1, validator)
             if (!(accepted)){
                 Zc <- rbind(Zc, Z_proposed)
                 obs_map <- c(obs_map, i)
+                num_rejected <- num_rejected + 1
             }
         }
     }
@@ -246,13 +251,13 @@ update_zc <- function(model_params, transformations, validator){
     model_params
 }
 
-update_model_params <- function(model_params, hyperpars, transformations, validator) {
+update_model_params <- function(model_params, hyperpars, transformations, validator, cap) {
     model_params <- model_params %>%
         update_zmis(transformations, validator) %>%
         update_zobs(transformations) %>%
         update_cluster_covs(hyperpars) %>%
         update_cluster_means(hyperpars) %>%
-        update_zc(transformations, validator) %>%
+        update_zc(transformations, validator, cap) %>%
         update_clusters() %>%
         update_v() %>%
         calculate_log_cluster_probs() %>%

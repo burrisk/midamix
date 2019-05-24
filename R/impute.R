@@ -11,11 +11,12 @@
 #' @param burnin Number of iterations for initial burn-in period.
 #' @param validator A function that takes in an observation and determines whether
 #' it is feasible.
+#' @param cap Maximum number of rejected proposals allowed for the constrained sampler
 #' @param seed Random seed.
 #' @return A \code{tibble} consisting of multiply imputed data sets.
 #' @export
 impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, burnin = 100,
-                   validator = NULL, seed = 1) {
+                   validator = NULL, cap = NULL, seed = 1) {
     if (!(is.data.frame(data))) {
         stop("Argument data must be a data frame.")
     }
@@ -31,6 +32,9 @@ impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, bur
     }
     if (!(is.numeric(burnin)) | burnin < 0) {
         stop("The number of burn-in iterations must be a non-nnegative integer.")
+    }
+    if (!(is.null(cap)) & !(is.numeric(cap))){
+        stop("Cap must either be null or a positive integer.")
     }
     data <- dplyr::as_tibble(data)
     doubles <- sapply(data, is.double)
@@ -101,7 +105,7 @@ impute <- function(data, imputations = 10, max_clusters = 15, n_iter = 1000, bur
     samps <- midamix_mcmc(inits = inits$model_params,
                           hyperpars = inits$hyperpars,
                           transformations = inits$transformations,
-                          validator = validator,
+                          validator = validator, cap = cap,
                           n_iter = n_iter, burnin = burnin,
         monitor = c("Z"))
     imputation_indices <- seq(0, n_iter, length = imputations + 1)[-1]

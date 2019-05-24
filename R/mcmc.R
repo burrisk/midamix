@@ -1,4 +1,5 @@
-midamix_mcmc <- function(inits, hyperpars, transformations, validator = NULL, n_iter = 1000,
+midamix_mcmc <- function(inits, hyperpars, transformations, validator = NULL,
+                         cap = NULL, n_iter = 1000,
                          burnin = 100, monitor = NULL) {
   model_params <- inits
   output <- list()
@@ -15,7 +16,7 @@ midamix_mcmc <- function(inits, hyperpars, transformations, validator = NULL, n_
       pb_burnin$tick()
       Sys.sleep(0.01)
       model_params <- update_model_params(model_params, hyperpars, transformations,
-                                          validator)
+                                          validator, cap)
     }
   }
   pb_sampling <- progress::progress_bar$new(format = "  sampling [:bar] :percent eta: :eta",
@@ -25,7 +26,7 @@ midamix_mcmc <- function(inits, hyperpars, transformations, validator = NULL, n_
     stop <- T
     tryCatch({
       model_params <- update_model_params(model_params, hyperpars, transformations,
-                                          validator)
+                                          validator, cap)
       stop <- F
     }, error = function(e) {
 
